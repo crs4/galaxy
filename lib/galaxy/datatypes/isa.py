@@ -36,7 +36,7 @@ def utf8_text_file_open(path):
         fp = open(path, 'r', newline='', encoding='utf8')
     return fp
 
-# the name of file containing the isa archive
+# The name of the ISA archive (compressed file) as saved inside Galaxy
 ISA_ARCHIVE_NAME = "archive"
 
 # Archives types
@@ -76,115 +76,21 @@ class Isa(data.Data):
     metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
                              readonly=True, set_in_upload=True)
 
-    # Included investigation classes {{{2
-    ################################################################
-    # XXX They are used to repace missing isatools library.
-    # Once isatools is integrated, these classes will go away.
-
-    class Investigation(object):
-        filename = None
-        identifier = ''
-        title = ''
-        studies = []
-
-        def __init__(self, filename):
-            self.filename = filename
-            self.parse()
-
-    class Study(object):
-        identifier = ''
-        title = ''
-        description = ''
-        submission_date = ''
-        public_release_date = ''
-
-    class InvestigationTab(Investigation):
-
-        def __init__(self, filename):
-            super(self.__class__, self).__init__(filename)
-
-        def parse(self):
-            self.identifier = ''
-            self.title = ''
-            self.studies = []
-            with open(self.filename, 'rb') as csvfile:
-                investigation_reader = csv.reader(csvfile, delimiter="\t")
-                current_section = None
-                study = None
-                for row in investigation_reader:
-                    if len(row) == 1:
-                        current_section = row[0]
-                    elif current_section == 'INVESTIGATION':
-                        if row[0] == 'Investigation Identifier':
-                            self.identifier = row[1]
-                        if row[0] == 'Investigation Title':
-                            self.title = row[1]
-                    elif current_section == 'STUDY':
-                        if study is None:
-                            study = Isa.Study()
-                        if row[0] == 'Study Identifier':
-                            study.identifier = row[1]
-                        if row[0] == 'Study Title':
-                            study.title = row[1]
-                        if row[0] == 'Study Description':
-                            study.description = row[1]
-                        if row[0] == 'Study Submission Date':
-                            study.submission_date = row[1]
-                        if row[0] == 'Study Public Release Date':
-                            study.public_release_date = row[1]
-                if study is not None:
-                    self.studies.append(study)
-
-    class InvestigationJson(Investigation):
-
-        def __init__(self, filename):
-            super(self.__class__, self).__init__(filename)
-
-        def parse(self):
-            self.identifier = ''
-            self.title = ''
-            self.studies = []
-            fp = open(self.filename)
-            json_isa = json.load(fp)
-            self.identifier = json_isa['identifier']
-            self.title = json_isa['title']
-            for study in json_isa['studies']:
-                s = Isa.Study()
-                if 'identifier' in study:
-                    s.identifier = study['identifier']
-                if 'title' in study:
-                    s.title = study['title']
-                if 'description' in study:
-                    s.description = study['description']
-                if 'submissionDate' in study:
-                    s.submission_date = study['submissionDate']
-                if 'publicReleaseDate' in study:
-                    s.public_release_date = study['publicReleaseDate']
-                self.studies.append(s)
-
     @classmethod
     def _make_investigation(cls, filename):
         
-#        if filename[-5:].lower() == '.json':
-#            return Isa.InvestigationJson(filename)
-#        return Isa.InvestigationTab(filename)
-        
         # Parse JSON file
         if filename[-5:].lower() == '.json':
-            return isajson.load(filename)
+            fp = utf8_text_file_open(filename)
+            isa = isajson.load(fp)
+            return isa
         
         # Parse ISA-Tab investigation file
-        parser = isatab.Parser()
+        parser = isatab.InvestigationParser()
         fp = utf8_text_file_open(filename)
         parser.parse(fp)
         isa = parser.isa
         return isa
-        
-    """ Base class for implementing ISA datatypes """
-    file_ext = "isa"
-    composite_type = 'auto_primary_file'
-    allow_datatype_change = False
-    is_binary = True
 
     # Constructor {{{2
     ################################################################
@@ -246,6 +152,7 @@ class Isa(data.Data):
     def _get_investigation(cls, dataset):
         """Create a contained instance specific to the exact ISA type (Tab or Json).
            We will use it to parse and access information from the archive."""
+
         investigation = None
         main_file = cls._get_main_file(dataset)
         if main_file is not None:
@@ -333,7 +240,7 @@ class Isa(data.Data):
 
     def _extract_tar_archive(self, stream, target_path):
         """Extract files from a TAR archive."""
-
+        
         logger.debug("Isa::_extract_tar_archive")
         # extract the TAR archive
         logger.debug("Decompressing the TAR archive")
