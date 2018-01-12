@@ -63,23 +63,16 @@ logger.propagate = False
 logger.addHandler(ch)
 logger.setLevel(logging.ERROR)
 
-
 # ISA class {{{1
 ################################################################
 
 class Isa(data.Data):
     """ Base class for implementing ISA datatypes """
-    file_ext = "isa"
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
 
-    # Add static metadata responsible for naming dataset instances
-#    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
-#                             readonly=True, set_in_upload=True)
-
-    @classmethod
-    def _make_investigation(cls, filename):
+    def _make_investigation(self, filename):
         
         # Parse JSON file
         if filename[-5:].lower() == '.json':
@@ -106,8 +99,7 @@ class Isa(data.Data):
     # Get main file {{{2
     ################################################################
 
-    @classmethod
-    def _get_main_file(cls, dataset):
+    def _get_main_file(self, dataset):
         """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
 
         main_file = None
@@ -135,11 +127,11 @@ class Isa(data.Data):
             isa_files = os.listdir(isa_folder)
 
             # Try to find an ISA-Tab investigation file
-            main_file = cls._find_isatab_investigation_filename(isa_files)
+            main_file = self._find_isatab_investigation_filename(isa_files)
 
             # Try to find an ISA-Json JSON file
             if main_file is None:
-                main_file = cls._find_isajson_json_filename(isa_files)
+                main_file = self._find_isajson_json_filename(isa_files)
 
             # Make full path
             if main_file is not None:
@@ -154,23 +146,21 @@ class Isa(data.Data):
     # Get investigation {{{2
     ################################################################
 
-    @classmethod
-    def _get_investigation(cls, dataset):
+    def _get_investigation(self, dataset):
         """Create a contained instance specific to the exact ISA type (Tab or Json).
            We will use it to parse and access information from the archive."""
 
         investigation = None
-        main_file = cls._get_main_file(dataset)
+        main_file = self._get_main_file(dataset)
         if main_file is not None:
-            investigation = Isa._make_investigation(main_file)
+            investigation = self._make_investigation(main_file)
 
         return investigation
 
     # Find ISA-Tab investigation filename {{{2
     ################################################################
 
-    @classmethod
-    def _find_isatab_investigation_filename(cls, files_list):
+    def _find_isatab_investigation_filename(self, files_list):
         """Find the investigation file inside the ISA-Tab archive."""
         logger.debug("Finding investigation filename assuming an ISA-Tab dataset...")
         res = []
@@ -192,8 +182,7 @@ class Isa(data.Data):
     # Find ISA-Json JSON filename {{{2
     ################################################################
 
-    @classmethod
-    def _find_isajson_json_filename(cls, files_list):
+    def _find_isajson_json_filename(self, files_list):
         """Find the JSON file inside the ISA-Json archive."""
         logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
         res = [f for f in files_list if f.endswith(".json")]
@@ -509,8 +498,12 @@ class Isa(data.Data):
         # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
         if investigation is None:
-            html = '<html><header><title>Error while reading ISA archive.</title></header>' \
-                   '<body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
+            html = """<html><header><title>Error while reading ISA archive.</title></header>
+                   <body>
+                        <h1>An error occured while reading content of ISA archive.</h1>
+                        <p>If you have tried to load your archive with the uploader by selecting isa-tab as composite data type, then try to load it again with isa-json instead. Conversely, if you have tried to load your archive with the uploader by selecting isa-json as composite data type, then try isa-tab instead.</p>
+                        <p>You may also try to look into your zip file in order to find out if this is a proper ISA archive. If you see a file i_Investigation.txt inside, then it is an ISA-Tab archive. If you see a file with extension .json inside, then it is an ISA-JSON archive. If you see nothing like that, then either your ISA archive is corrupted, or it is not an ISA archive.</p>
+                   </body></html>"""
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
@@ -543,3 +536,15 @@ class Isa(data.Data):
         self._clean_and_set_mime_type(trans, mime)
 
         return sanitize_html(html).encode('utf-8')
+
+# ISA-Tab class {{{1
+################################################################
+
+class IsaTab(Isa):
+    file_ext = "isa-tab"
+
+# ISA-JSON class {{{1
+################################################################
+
+class IsaJson(Isa):
+    file_ext = "isa-json"
