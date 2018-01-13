@@ -425,35 +425,6 @@ class Isa(data.Data):
             logger.debug("Files in %s after grooming...", output_path)
             for f in os.listdir(output_path):
                 logger.debug("File: %s", f)
-
-#    # Sniff {{{2
-#    ################################################################
-#
-#    def sniff(self, filename):
-#        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence
-#           of an investigation file."""
-#
-#        # XXX Remove this method? This method seems to be unused for a composite data type.
-#        # Inside the uploader tool, only the types of normal datasets can be detected automatically,
-#        # the types of composite datasets are always specified manually.
-#
-#        logger.debug("Checking if %s is an ISA.", filename)
-#
-#        # Get the list of files within the compressed archive
-#        with open(filename, 'rb') as stream:
-#            files_list = self._list_archive_files(stream)
-#            if self._find_isatab_investigation_filename(files_list) is not None \
-#                    or self._find_isajson_json_filename(files_list) is not None:
-#                return True
-#
-#        return False
-        
-    # Init meta {{{2
-    ################################################################
-
-    def init_meta( self, dataset, copy_from=None ):
-        super(Isa, self).init_meta(dataset, copy_from)
-        self._set_dataset_name(dataset)
         
     # Set meta {{{2
     ################################################################
