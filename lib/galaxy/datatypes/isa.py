@@ -72,20 +72,11 @@ class Isa(data.Data):
     allow_datatype_change = False
     is_binary = True
 
-    def _make_investigation(self, filename):
-        
-        # Parse JSON file
-        if filename[-5:].lower() == '.json':
-            fp = utf8_text_file_open(filename)
-            isa = isajson.load(fp)
-            return isa
-        
-        # Parse ISA-Tab investigation file
-        parser = isatab.InvestigationParser()
-        fp = utf8_text_file_open(filename)
-        parser.parse(fp)
-        isa = parser.isa
-        return isa
+    # Make investigation instance {{{2
+    ################################################################
+    
+    def _make_investigation_instance(self, filename):
+        raise NotImplementedError("Class Isa should not be used directly, but instead either class IsaTab or class IsaJson.")
 
     # Constructor {{{2
     ################################################################
@@ -96,16 +87,13 @@ class Isa(data.Data):
         # Add the archive file as the only composite file
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
-    # Get main file {{{2
+    # Get ISA folder path {{{2
     ################################################################
-
-    def _get_main_file(self, dataset):
-        """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
-
-        main_file = None
-                
-        # Detect type
+    
+    def _get_isa_folder_path(self, dataset):
+        
         isa_folder = None
+        
         if dataset:
             if isinstance(dataset, model.Dataset):
                 isa_folder = dataset.extra_files_path
@@ -117,12 +105,20 @@ class Isa(data.Data):
                 isa_folder = dataset.dataset.extra_files_path
 
         if isa_folder is None:
-            logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
-        elif not os.path.exists(isa_folder):
-            logger.warning("The extra files path '%s' doesn't exit", isa_folder)
-        else:
-            logger.debug("The extra files folder is: %s", isa_folder)
+            raise Exception('Unvalid dataset object, or no extra files path found for this dataset.')
+        
+        return isa_folder
 
+    # Get main file {{{2
+    ################################################################
+
+    def _get_main_file(self, dataset):
+        """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
+
+        main_file = None
+        isa_folder = self._get_isa_folder_path(dataset)
+
+        if os.path.exists(isa_folder):
             # Get ISA archive older
             isa_files = os.listdir(isa_folder)
 
@@ -138,7 +134,7 @@ class Isa(data.Data):
                 main_file = os.path.join(isa_folder, main_file)
 
             if main_file is None:
-                logger.warning(
+                raise Exception(
                     'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
 
         return main_file
@@ -153,7 +149,7 @@ class Isa(data.Data):
         investigation = None
         main_file = self._get_main_file(dataset)
         if main_file is not None:
-            investigation = self._make_investigation(main_file)
+            investigation = self._make_investigation_instance(main_file)
 
         return investigation
 
@@ -430,27 +426,30 @@ class Isa(data.Data):
             for f in os.listdir(output_path):
                 logger.debug("File: %s", f)
 
-    # Sniff {{{2
+#    # Sniff {{{2
+#    ################################################################
+#
+#    def sniff(self, filename):
+#        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence
+#           of an investigation file."""
+#
+#        # XXX Remove this method? This method seems to be unused for a composite data type.
+#        # Inside the uploader tool, only the types of normal datasets can be detected automatically,
+#        # the types of composite datasets are always specified manually.
+#
+#        logger.debug("Checking if %s is an ISA.", filename)
+#
+#        # Get the list of files within the compressed archive
+#        with open(filename, 'rb') as stream:
+#            files_list = self._list_archive_files(stream)
+#            if self._find_isatab_investigation_filename(files_list) is not None \
+#                    or self._find_isajson_json_filename(files_list) is not None:
+#                return True
+#
+#        return False
+        
+    # Init meta {{{2
     ################################################################
-
-    def sniff(self, filename):
-        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence
-           of an investigation file."""
-
-        # XXX Remove this method? This method seems to be unused for a composite data type.
-        # Inside the uploader tool, only the types of normal datasets can be detected automatically,
-        # the types of composite datasets are always specified manually.
-
-        logger.debug("Checking if %s is an ISA.", filename)
-
-        # Get the list of files within the compressed archive
-        with open(filename, 'rb') as stream:
-            files_list = self._list_archive_files(stream)
-            if self._find_isatab_investigation_filename(files_list) is not None \
-                    or self._find_isajson_json_filename(files_list) is not None:
-                return True
-
-        return False
 
     def init_meta( self, dataset, copy_from=None ):
         super(Isa, self).init_meta(dataset, copy_from)
@@ -543,8 +542,32 @@ class Isa(data.Data):
 class IsaTab(Isa):
     file_ext = "isa-tab"
 
+    # Make investigation instance {{{2
+    ################################################################
+        
+    def _make_investigation_instance(self, filename):
+
+        # Parse ISA-Tab investigation file
+        parser = isatab.InvestigationParser()
+        fp = utf8_text_file_open(filename)
+        parser.parse(fp)
+        isa = parser.isa
+        
+        return isa
+
 # ISA-JSON class {{{1
 ################################################################
 
 class IsaJson(Isa):
     file_ext = "isa-json"
+
+    # Make investigation instance {{{2
+    ################################################################
+        
+    def _make_investigation_instance(self, filename):
+        
+        # Parse JSON file
+        fp = utf8_text_file_open(filename)
+        isa = isajson.load(fp)
+            
+        return isa
