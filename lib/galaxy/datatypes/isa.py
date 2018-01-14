@@ -422,11 +422,6 @@ class Isa(data.Data):
             dataset.name = investigation.identifier
         else:
             dataset.name = 'ISA DATASET'
-
-    def display_name(self, dataset):
-        """Returns formatted html of dataset name"""
-        self._set_dataset_name(dataset)
-        super(Isa, self).display_name(dataset)
         
     # Display data {{{2
     ################################################################
