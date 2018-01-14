@@ -71,6 +71,7 @@ class Isa(data.Data):
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
+    _main_file_regex = None
 
     # Make investigation instance {{{2
     ################################################################
@@ -81,8 +82,9 @@ class Isa(data.Data):
     # Constructor {{{2
     ################################################################
 
-    def __init__(self, **kwd):
-        data.Data.__init__(self, **kwd)
+    def __init__(self, main_file_regex, **kwd):
+        super(Isa, self).__init__(**kwd)
+        self._main_file_regex = main_file_regex
 
         # Add the archive file as the only composite file
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
@@ -114,7 +116,25 @@ class Isa(data.Data):
 
     def _get_main_file(self, dataset):
         """Get the main file of the ISA archive. Either the investigation file i_*.txt for ISA-Tab, or the JSON file for ISA-JSON."""
-        raise NotImplementedError()
+
+        main_file = None
+        isa_folder = self._get_isa_folder_path(dataset)
+
+        if os.path.exists(isa_folder):
+            
+            # Get ISA archive older
+            isa_files = os.listdir(isa_folder)
+
+            # Try to find a JSON file
+            main_file = self._find_main_file_in_archive(isa_files)
+
+            if main_file is None:
+                raise Exception('Invalid ISA archive. No main file found.')
+
+            # Make full path
+            main_file = os.path.join(isa_folder, main_file)
+
+        return main_file
 
     # Get investigation {{{2
     ################################################################
@@ -130,40 +150,24 @@ class Isa(data.Data):
 
         return investigation
 
-    # Find ISA-Tab investigation filename {{{2
+    # Find main file in archive {{{2
     ################################################################
+    
+    def _find_main_file_in_archive(self, files_list):
+        """Find the main file inside the ISA archive."""
 
-    def _find_isatab_investigation_filename(self, files_list):
-        """Find the investigation file inside the ISA-Tab archive."""
-
-        res = []
+        found_file = None
+        
         for f in files_list:
-            match = re.findall(r"^i_\w+\.txt", f, flags = re.IGNORECASE)
+            match = re.findall(self._main_file_regex, f, flags = re.IGNORECASE)
             if match:
-                res.append(match[0])
+                if found_file is None:
+                    found_file = match[0]
+                else:
+                    raise Exception('More than one file match the pattern "', str(file_regex), '" to identify the investigation file')
+                    break
 
-        if len(res) > 0:
-            if len(res) == 1:
-                investigation_filename = res[0]
-                return investigation_filename
-            logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
-        return None
-
-    # Find ISA-Json JSON filename {{{2
-    ################################################################
-
-    def _find_isajson_json_filename(self, files_list):
-        """Find the JSON file inside the ISA-Json archive."""
-        logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
-        res = [f for f in files_list if f.endswith(".json")]
-        logger.debug("List of matches: %r", res)
-        if len(res) > 0:
-            if len(res) == 1:
-                investigation_filename = res[0]
-                logger.debug("Found primary file: %s", investigation_filename)
-                return investigation_filename
-            logger.error("More than one JSON file match the pattern to identify the investigation file")
-        return None
+        return found_file
 
     # Extract archive {{{2
     ################################################################
@@ -470,7 +474,7 @@ class Isa(data.Data):
                         html += '<p>Data files:</p>'
                         html += '<ul>'
                         for data_file in assay.data_files:
-                            html += '<li>%s - %s - %s</li>' % data_file.id % data_file.filename % data_file.label
+                            html += '<li>' + str(data_file.id) + ' - ' + str(data_file.filename) + ' - ' + str(data_file.label) + '</li>'
                         html += '</ul>'
 
             html += '</body></html>'
@@ -487,6 +491,12 @@ class Isa(data.Data):
 class IsaTab(Isa):
     file_ext = "isa-tab"
 
+    # Constructor {{{2
+    ################################################################
+
+    def __init__(self, **kwd):
+        super(IsaTab, self).__init__(main_file_regex = r"^i_\w+\.txt", **kwd)
+
     # Make investigation instance {{{2
     ################################################################
         
@@ -500,37 +510,17 @@ class IsaTab(Isa):
         
         return isa
 
-    # Get main file {{{2
-    ################################################################
-
-    def _get_main_file(self, dataset):
-        """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
-
-        main_file = None
-        isa_folder = self._get_isa_folder_path(dataset)
-
-        if os.path.exists(isa_folder):
-            
-            # Get ISA archive older
-            isa_files = os.listdir(isa_folder)
-
-            # Try to find an ISA-Tab investigation file
-            main_file = self._find_isatab_investigation_filename(isa_files)
-
-            if main_file is None:
-                raise Exception(
-                    'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
-
-            # Make full path
-            main_file = os.path.join(isa_folder, main_file)
-
-        return main_file
-
 # ISA-JSON class {{{1
 ################################################################
 
 class IsaJson(Isa):
     file_ext = "isa-json"
+
+    # Constructor {{{2
+    ################################################################
+
+    def __init__(self, **kwd):
+        super(IsaJson, self).__init__(main_file_regex = r"^.*\.json", **kwd)
 
     # Make investigation instance {{{2
     ################################################################
@@ -542,29 +532,3 @@ class IsaJson(Isa):
         isa = isajson.load(fp)
             
         return isa
-
-    # Get main file {{{2
-    ################################################################
-
-    def _get_main_file(self, dataset):
-        """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
-
-        main_file = None
-        isa_folder = self._get_isa_folder_path(dataset)
-
-        if os.path.exists(isa_folder):
-            
-            # Get ISA archive older
-            isa_files = os.listdir(isa_folder)
-
-            # Try to find a JSON file
-            main_file = self._find_isajson_json_filename(isa_files)
-
-            if main_file is None:
-                raise Exception(
-                    'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
-
-            # Make full path
-            main_file = os.path.join(isa_folder, main_file)
-
-        return main_file
