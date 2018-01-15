@@ -30,13 +30,12 @@ from galaxy.datatypes import metadata
 from galaxy.util.sanitize_html import sanitize_html
 from galaxy import model
 
-# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3
-def utf8_text_file_open(path):
-    if sys.version_info[0] < 3: 
-        fp = open(path, 'rb')
-    else:
-        fp = open(path, 'r', newline='', encoding='utf8')
-    return fp
+# CONSTANTS {{{1
+################################################################
+
+# Main files regex
+JSON_FILE_REGEX = re.compile(r"^.*\.json$", flags = re.IGNORECASE)
+INVESTIGATION_FILE_REGEX = re.compile(r"^i_\w+\.txt$", flags = re.IGNORECASE)
 
 # The name of the ISA archive (compressed file) as saved inside Galaxy
 ISA_ARCHIVE_NAME = "archive"
@@ -53,7 +52,9 @@ _FILE_TYPE_REGEX = re.compile("(%s)" % "|".join(map(re.escape, _FILE_TYPE_PREFIX
 # Set max number of lines of the history peek
 _MAX_LINES_HISTORY_PEEK = 11
 
-# Configure logger
+# Configure logger {{{1
+################################################################
+
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("%(name)s %(levelname)s %(asctime)s %(message)s")
@@ -62,6 +63,16 @@ logger.handlers = []
 logger.propagate = False
 logger.addHandler(ch)
 logger.setLevel(logging.ERROR)
+
+# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3 {{{1
+################################################################
+
+def utf8_text_file_open(path):
+    if sys.version_info[0] < 3: 
+        fp = open(path, 'rb')
+    else:
+        fp = open(path, 'r', newline='', encoding='utf8')
+    return fp
 
 # ISA class {{{1
 ################################################################
@@ -159,7 +170,7 @@ class Isa(data.Data):
         found_file = None
         
         for f in files_list:
-            match = re.findall(self._main_file_regex, f, flags = re.IGNORECASE)
+            match = self._main_file_regex.findall(f)
             if match:
                 if found_file is None:
                     found_file = match[0]
@@ -490,7 +501,7 @@ class IsaTab(Isa):
     ################################################################
 
     def __init__(self, **kwd):
-        super(IsaTab, self).__init__(main_file_regex = r"^i_\w+\.txt", **kwd)
+        super(IsaTab, self).__init__(main_file_regex = INVESTIGATION_FILE_REGEX, **kwd)
 
     # Make investigation instance {{{2
     ################################################################
@@ -515,7 +526,7 @@ class IsaJson(Isa):
     ################################################################
 
     def __init__(self, **kwd):
-        super(IsaJson, self).__init__(main_file_regex = r"^.*\.json", **kwd)
+        super(IsaJson, self).__init__(main_file_regex = JSON_FILE_REGEX, **kwd)
 
     # Make investigation instance {{{2
     ################################################################
