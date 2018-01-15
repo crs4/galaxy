@@ -206,8 +206,6 @@ class Isa(data.Data):
     def _extract_zip_archive(self, stream, target_path):
         """Extract files from a ZIP archive."""
 
-        logger.debug("Isa::_extract_zip_archive")
-        logger.debug("Decompressing the ZIP archive")
         temp_folder = tempfile.mkdtemp()
         data = BytesIO(stream.read())
         zip_ref = zipfile.ZipFile(data)
@@ -220,9 +218,7 @@ class Isa(data.Data):
     def _extract_tar_archive(self, stream, target_path):
         """Extract files from a TAR archive."""
         
-        logger.debug("Isa::_extract_tar_archive")
         # extract the TAR archive
-        logger.debug("Decompressing the TAR archive")
         temp_folder = tempfile.mkdtemp()
         with tarfile.open(fileobj=stream) as tar:
             tar.extractall(path=temp_folder)
@@ -234,11 +230,9 @@ class Isa(data.Data):
     def _move_to_target_path(self, temp_folder, target_path, delete_temp_folder=True):
         """Move extracted files to the destination folder imposed by Galaxy."""
 
-        logger.debug("Isa::_move_to_target_path")
         # find the root folder containing the dataset
         tmp_subfolders = [f for f in os.listdir(temp_folder) if
                           not f.startswith(".") and f not in (ISA_ARCHIVE_NAME, "__MACOSX")]
-        logger.debug("Files within the temp folder: %r", tmp_subfolders)
         # move files contained within the root dataset folder to their target path
         root_folder = os.path.join(temp_folder, tmp_subfolders[0])
         if len(tmp_subfolders) == 1 and os.path.isdir(root_folder):
@@ -258,7 +252,6 @@ class Isa(data.Data):
     def _list_archive_files(self, stream):
         """List files contained inside the ISA archive."""
 
-        logger.debug("Isa::_list_archive_files")
         # try to detect the type of the compressed archive
         a_type = self._detect_file_type(stream)
         # decompress the archive
@@ -274,7 +267,6 @@ class Isa(data.Data):
         # filter the base path if it exists
         if len(files_list) > 0:
             base_path = files_list[0].split("/")[0]
-            logger.debug("Base path: %s" % base_path)
             if base_path:
                 # the TAR archive encodes the base_path without a final '/'
                 if base_path in files_list:
@@ -296,14 +288,12 @@ class Isa(data.Data):
 
         :return: "zip" or "gz" if the file type is detected; None otherwise.
         """
-        logger.debug("Isa::_detect_file_type")
         file_type = None
         file_start = stream.read(_MAX_LEN_FILE_TYPE_PREFIX)
         stream.seek(0)  # reset the stream
         matched_prefix = _FILE_TYPE_REGEX.match(file_start)
         if matched_prefix:
             file_type = _FILE_TYPE_PREFIX[matched_prefix.string[matched_prefix.start():matched_prefix.end()]]
-        logger.debug("Detected file type: %s (prefix: %r)" % (file_type, file_start))
 
         return file_type
 
@@ -361,10 +351,8 @@ class Isa(data.Data):
     def generate_primary_file(self, dataset=None):
         """Generate the primary file. It is an HTML file containing description of the composite dataset
            as well as a list of the composite files that it contains."""
-        logger.debug("Isa::generate_primary_file")
+
         if dataset:
-            logger.debug("Dataset: %r", dataset)
-            logger.debug("Isa::generate_primary_file " + str(dataset))
             rval = ['<html><head><title>ISA Dataset </title></head><p/>']
             if hasattr(dataset, "extra_files_path"):
                 rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
@@ -374,7 +362,6 @@ class Isa(data.Data):
                 rval.append('</ul></div></html>')
             else:
                 rval.append('<div>ISA Dataset is empty!<p/><ul>')
-            logger.debug(" ".join(rval))
             return "\n".join(rval)
         return "<div>No dataset available</div>"
 
@@ -399,20 +386,11 @@ class Isa(data.Data):
         output_path = os.path.dirname(file_name)
         # extract archive if the file corresponds to the ISA archive
         if basename == ISA_ARCHIVE_NAME:
-            # list files before
-            logger.debug("Files in %s before grooming...", output_path)
-            for f in os.listdir(output_path):
-                logger.debug("File: %s", f)
-                logger.debug("Grooming dataset: %s", file_name)
             # perform extraction
             with open(file_name, 'rb') as stream:
                 self._extract_archive(stream, output_path=output_path)
             # remove the original archive file
             os.remove(file_name)
-            # list files after
-            logger.debug("Files in %s after grooming...", output_path)
-            for f in os.listdir(output_path):
-                logger.debug("File: %s", f)
         
     # Set meta {{{2
     ################################################################
@@ -445,7 +423,6 @@ class Isa(data.Data):
         self._set_dataset_name(dataset)
         # if it is not required a preview use the default behaviour of `display_data`
         if not preview:
-            logger.debug("Use the default `display_data` behaviour")
             return super(Isa, self).display_data(trans, dataset, preview, filename, to_ext, **kwd)
 
         # prepare the preview of the ISA dataset
