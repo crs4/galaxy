@@ -170,10 +170,10 @@ class Isa(data.Data):
         found_file = None
         
         for f in files_list:
-            match = self._main_file_regex.findall(f)
+            match = self._main_file_regex.match(f)
             if match:
                 if found_file is None:
-                    found_file = match[0]
+                    found_file = match.group()
                 else:
                     raise Exception('More than one file match the pattern "', str(file_regex), '" to identify the investigation file')
 
