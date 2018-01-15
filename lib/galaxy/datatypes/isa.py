@@ -176,7 +176,6 @@ class Isa(data.Data):
                     found_file = match[0]
                 else:
                     raise Exception('More than one file match the pattern "', str(file_regex), '" to identify the investigation file')
-                    break
 
         return found_file
 
