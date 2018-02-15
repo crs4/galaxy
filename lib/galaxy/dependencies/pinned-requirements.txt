@@ -82,4 +82,4 @@ pysam==0.8.4+gx5
 python-genomespaceclient==0.1.8
 
 #git+https://github.com/ISA-tools/isa-rwval.git#egg=isa-rwval
-git+https://github.com/ilveroluca/isa-rwval.git@feature/fewer_deps#egg=isa-rwval
+git+https://github.com/ilveroluca/isa-rwval.git@feature/reduce_requirements#egg=isa-rwval
